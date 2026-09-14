@@ -20,9 +20,10 @@ class firewall:
 
 
         self.nat_enabled = config['firewall']['nat']['enabled']
-        self.loging_enabled = config['firewall']['logging']['enabled']
+        self.logging_enabled = config['firewall']['logging']['enabled']
 
         self.whitelist = self._read_ip_file("Whitelist.txt")
+        self.temper = self._read_ip_file("temper.txt")
         self.blacklist = self._read_ip_file("Blacklist.txt")
 
         Path('logs').mkdir(exist_ok=True)
@@ -73,3 +74,76 @@ def _run_nft(self, ruleset):
         raise firewallerror(result.stderr.strip())
 
      return result.stdout
+
+def IP_DISCOVERY(self):
+     
+     for ip in self.whitelist:
+        rules.append(f"ip saddr {ip} accept;")
+
+     for ip in self.blocklist:
+        rules.append(f"ip saddr {ip} drop;")
+
+     if self.logging_enabled:
+         rules.append(" limit rate 10/second log prefix FIREWALL DROP:")
+
+def rule_generation(self):
+
+     global rules
+     rules = []
+
+     rules.append(f"table inet {self.table}")
+
+     rules.append(f""" 
+     table inet {self.table}
+     
+     chain input {{type filter hook input priority 0; policy {self.input_policy};
+       iifname "lo" accept;
+       ct state invalid Drop;
+       ct state established accept;
+       ct state related accept; }}
+""")
+
+     print(IP_DISCOVERY)
+
+     rules.append(""" 
+      chain forward {
+      type filter hook forward proiroty 0;
+      policy %s
+      ct state invalid Drop;
+      ct state established
+      ct state related accept;
+      }
+     """ % self.forward_policy)
+
+     rules.append("""
+      chain output {
+      type filter hook output proirty 0;
+      policy %s
+
+    }
+     """ % self.output_policy)
+
+     if self.nat_enabled and self.wan:
+         rules.append("""
+       chain postrouting {{
+        type nat hook postrouting priority 100;
+        oifname "{self.wan}" masquerade;
+    }}
+         """)
+
+     rules.append("{")
+
+     return"\n".join(rules)
+# --------------------------------------------------------------------------------
+#                      firewall functions
+#---------------------------------------------------------------------------------
+
+
+
+     
+       
+     
+
+
+
+
