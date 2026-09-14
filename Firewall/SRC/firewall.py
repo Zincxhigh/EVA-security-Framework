@@ -113,7 +113,7 @@ def rule_generation(self):
 
       chain forward {
 
-      type filter hook forward proiroty 0;
+      type filter hook forward priority 0;
 
       policy %s
 
@@ -128,7 +128,7 @@ def rule_generation(self):
      rules.append("""
       chain output {
 
-      type filter hook output proirty 0;
+      type filter hook output priority 0;
 
       policy %s
 
