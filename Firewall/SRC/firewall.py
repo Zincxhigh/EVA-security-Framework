@@ -97,27 +97,39 @@ def rule_generation(self):
      table inet {self.table}
      
      chain input {{type filter hook input priority 0; policy {self.input_policy};
+
        iifname "lo" accept;
+
        ct state invalid Drop;
+
        ct state established accept;
+
        ct state related accept; }}
 """)
 
      print(IP_DISCOVERY)
 
      rules.append(""" 
+
       chain forward {
+
       type filter hook forward proiroty 0;
+
       policy %s
+
       ct state invalid Drop;
+
       ct state established
+
       ct state related accept;
       }
      """ % self.forward_policy)
 
      rules.append("""
       chain output {
+
       type filter hook output proirty 0;
+
       policy %s
 
     }
@@ -125,20 +137,51 @@ def rule_generation(self):
 
      if self.nat_enabled and self.wan:
          rules.append("""
+
        chain postrouting {{
+
         type nat hook postrouting priority 100;
+
         oifname "{self.wan}" masquerade;
+
     }}
          """)
 
      rules.append("{")
 
      return"\n".join(rules)
+
 # --------------------------------------------------------------------------------
 #                      firewall functions
 #---------------------------------------------------------------------------------
 
+def apply(self):
 
+    ruleset = self.rule_generation
+
+    logging.info("Applying Ruleset to firewall")
+
+    try:
+
+        self._run_nft(ruleset)
+
+    except firewallerror:
+
+        logging.exception("Falied to apply")
+
+        raise
+
+    logging.info("Applied succesfully")
+
+def show(self):
+
+    result = subprocess.run(["nft","set","tabel", "inet", self.table],text=True,capture_output=True)
+
+    if result.returncode != 0:
+
+        print(result.stderr)
+
+        return
 
      
        
