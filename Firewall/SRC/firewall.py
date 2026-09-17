@@ -3,190 +3,238 @@ import logging
 import subprocess
 from pathlib import Path
 
+
 class firewallerror(Exception):
     pass
+
 
 class firewall:
     def __init__(self, config):
         self.config = config
-        self.table = config['firewall','name']
+        self.table = config["firewall"]["name"]
 
-        self.wan = config['firewall']['interfaces'].get('wan')
-        self.lan = config['firewall']['interfaces'].get('lan')
+        self.wan = config["firewall"]["interfaces"].get("wan")
+        self.lan = config["firewall"]["interfaces"].get("lan")
 
-        self.input_policy = config['firewall']['default_policy']['input']
-        self.forward_policy = config['firewall']['default_policy']['forward']
-        self.output_policy = config['firewall']['default_policy']['output']
+        self.input_policy = config["firewall"]["default_policy"].get("input", "drop")
+        self.forward_policy = config["firewall"]["default_policy"].get("forward", "drop")
+        self.output_policy = config["firewall"]["default_policy"].get("output", "accept")
 
-
-        self.nat_enabled = config['firewall']['nat']['enabled']
-        self.logging_enabled = config['firewall']['logging']['enabled']
+        self.nat_enabled = bool(config["firewall"]["nat"].get("enabled", False))
+        self.logging_enabled = bool(config["firewall"]["logging"].get("enabled", False))
 
         self.whitelist = self._read_ip_file("Whitelist.txt")
         self.temper = self._read_ip_file("temper.txt")
         self.blacklist = self._read_ip_file("Blacklist.txt")
 
-        Path('logs').mkdir(exist_ok=True)
+        base_dir = Path(__file__).resolve().parent
+        (base_dir / "logs").mkdir(exist_ok=True)
 
         logging.basicConfig(
-            filename = 'logs/firewall.log',
-            level = logging.INFO,
-            format="%(asctime)s [%(levelname)s] %(message)s"
+            filename=str(base_dir / "logs" / "firewall.log"),
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(message)s",
         )
 
+    def _read_ip_file(self, filename):
 
-# --------------------------------------------------------------------------------
-#                      Utility Functions
-#---------------------------------------------------------------------------------
+        result = []
 
-def _read_ip_file(self, filename):
-    result = []
+        base_dir = Path(__file__).resolve().parent
 
-    path = Path(filename)
+        path = base_dir / filename
 
-    if not path.exists():
+        if not path.exists():
+
+            return result
+
+        with path.open("r", encoding="utf-8") as handle:
+
+            for raw_line in handle:
+
+                line = raw_line.strip()
+
+                if not line or line.startswith("#"):
+
+                    continue
+
+                try:
+                    ipaddress.ip_address(line)
+
+                    result.append(line)
+
+                except ValueError:
+
+                    logging.warning("Ignoring invalid IP in %s: %s", filename, line)
+
+
         return result
 
-    with path.open("r") as f:
-        for line in f:
-            line = line.strip()
+    def _run_nft(self, ruleset):
 
-            if not line or line.startswith("#"):
-                continue
+        result = subprocess.run(
 
-            try:
-                ip = ipaddress.ip_address(line)
-                result.append(line)
-            except ValueError:
-                        logging.warning(
-                        "Ignoring invalid IP in %s: %s",
-                        filename,
-                        line
-                    )
+            ["nft", "-f", "-"],
 
-    return result
+            input=ruleset,
 
-def _run_nft(self, ruleset):
+            text=True,
 
-     result = subprocess.run(["nft", "-f", "-"],input=ruleset, text=True,capture_output=True)
+            capture_output=True,
 
-     if result.returncode != 0:
-        raise firewallerror(result.stderr.strip())
+            check=False,
+        )
 
-     return result.stdout
+        if result.returncode != 0:
 
-def IP_DISCOVERY(self):
-     
-     for ip in self.whitelist:
-        rules.append(f"ip saddr {ip} accept;")
+            raise firewallerror(result.stderr.strip() or "nft error")
 
-     for ip in self.blocklist:
-        rules.append(f"ip saddr {ip} drop;")
+        return result.stdout
 
-     if self.logging_enabled:
-         rules.append(" limit rate 10/second log prefix FIREWALL DROP:")
+    def rule_generation(self):
 
-def rule_generation(self):
+        rules = []
 
-     global rules
-     rules = []
+        rules.append(f"table inet {self.table} {{")
 
-     rules.append(f"table inet {self.table}")
 
-     rules.append(f""" 
-     table inet {self.table}
-     
-     chain input {{type filter hook input priority 0; policy {self.input_policy};
+        rules.append("  chain input {")
 
-       iifname "lo" accept;
+        rules.append(f"    type filter hook input priority 0; policy {self.input_policy};")
 
-       ct state invalid Drop;
+        rules.append('    iifname "lo" accept')
 
-       ct state established accept;
+        rules.append("    ct state invalid drop")
 
-       ct state related accept; }}
-""")
+        rules.append("    ct state { established, related } accept")
 
-     print(IP_DISCOVERY)
+        for ip in self.whitelist:
 
-     rules.append(""" 
+            rules.append(f"    ip saddr {ip} accept")
 
-      chain forward {
+        for ip in self.blacklist:
 
-      type filter hook forward priority 0;
+            rules.append(f"    ip saddr {ip} drop")
 
-      policy %s
+        if self.logging_enabled:
 
-      ct state invalid Drop;
+            rules.append('    log prefix "FIREWALL DROP: " level warning')
 
-      ct state established
+            rules.append("    drop")
 
-      ct state related accept;
-      }
-     """ % self.forward_policy)
+        rules.append("  }")
 
-     rules.append("""
-      chain output {
+        rules.append("  chain forward {")
 
-      type filter hook output priority 0;
+        rules.append(f"    type filter hook forward priority 0; policy {self.forward_policy};")
 
-      policy %s
+        rules.append("    ct state invalid drop")
 
-    }
-     """ % self.output_policy)
+        rules.append("    ct state { established, related } accept")
 
-     if self.nat_enabled and self.wan:
-         rules.append("""
+        rules.append("  }")
 
-       chain postrouting {{
+        rules.append("  chain output {")
 
-        type nat hook postrouting priority 100;
+        rules.append(f"    type filter hook output priority 0; policy {self.output_policy};")
 
-        oifname "{self.wan}" masquerade;
+        rules.append("  }")
 
-    }}
-         """)
+        if self.nat_enabled and self.wan:
 
-     rules.append("{")
+            rules.append(
+                f'  chain postrouting {{ type nat hook postrouting priority 100; policy accept; oifname "{self.wan}" masquerade; }}'
+            )
 
-     return"\n".join(rules)
+        rules.append("}")
 
-# --------------------------------------------------------------------------------
-#                      firewall functions
-#---------------------------------------------------------------------------------
+        return "\n".join(rules)
 
-def apply(self):
+    def apply(self):
 
-    ruleset = self.rule_generation
+        ruleset = self.rule_generation()
 
-    logging.info("Applying Ruleset to firewall")
+        logging.info("Applying ruleset to firewall")
 
-    try:
+        try:
 
-        self._run_nft(ruleset)
+            self._run_nft(ruleset)
 
-    except firewallerror:
+        except firewallerror:
 
-        logging.exception("Falied to apply")
+            logging.exception("Failed to apply")
 
-        raise
+            raise
 
-    logging.info("Applied succesfully")
+        logging.info("Applied successfully")
 
-def show(self):
+    def show(self):
 
-    result = subprocess.run(["nft","set","tabel", "inet", self.table],text=True,capture_output=True)
+        result = subprocess.run(
 
-    if result.returncode != 0:
+            ["nft", "list", "table", "inet", self.table],
+
+            text=True,
+
+            capture_output=True,
+
+            check=False,
+        )
+
+        if result.returncode != 0:
+
+            print(result.stderr)
+
+            return
+
+        print(result.stdout)
+
+    def stop(self):
+
+        result = subprocess.run(
+
+            ["nft", "delete", "table", "inet", self.table],
+
+            text=True,
+
+            capture_output=True,
+
+            check=False,
+        )
+
+        if result.returncode != 0:
+
+            print(result.stderr)
+
+            return
+
+        logging.info("Firewall stopped.")
+
+    def test(self):
+
+        ruleset = self.rule_generation()
+
+        result = subprocess.run(
+
+            ["nft", "-c", "-f", "-"],
+
+            input=ruleset,
+
+            text=True,
+
+            capture_output=True,
+
+            check=False,
+        )
+
+        if result.returncode == 0:
+
+            print("Ruleset is valid.")
+
+            return True
+
+        print("Ruleset contains errors.")
 
         print(result.stderr)
-
-        return
-
-     
-       
-     
-
-
-
-
+        
+        return False

@@ -1,0 +1,13 @@
+firewall:
+  name: NVO-FIREWALL
+  interfaces:
+    wan: eth0
+    lan: eth1
+  default_policy:
+    input: drop
+    forward: drop
+    output: accept
+  nat:
+    enabled: true
+  logging:
+    enabled: true
