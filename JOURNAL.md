@@ -22,4 +22,4 @@ Zyinc will add more security things to the framework like a privacy layer which 
 
  But thats not IT, it also has DNS filtering. DNS is basically a phonebook. when you search google.com on the web, it first looks at the DNS and if the address is written on it, you'll reach the website. Normally everything works out of the box, the DNS is provided by Your ISP. but you can Change it to whatever you want. Some Examples are cloudflare DNS which is pretty good as well. Idk which Zyinc is going to use tho. DAMN, i yap so much when it comes to this stuff.
 
- Well this is it for today i guess. Next week i'll lock in from the start and won't procrastinate.
+ Well this is it for today i guess. Next week i'll lock in from the start and won't procrastinate. Insha-Allah.
