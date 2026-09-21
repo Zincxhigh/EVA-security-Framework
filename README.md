@@ -1,6 +1,8 @@
-# About 
+# EVA-Security Framework
 
-The first CyberDeck with it's own Operating system and security Framework for penetration testing,OSINT intelligence,Forensics Tools,Social engineering Tools and more all in one compact CyberDeck as we know that CyberDeck's are not Primerily used for those kind of need's For Todays need's but originally the CyberDeck Idea was for a Compact Hacking computer for Quick penetration system The People who make this For Fun are Larper's be advised not to trust them on why you should Have cute anime Picture's On your CyberDeck as it is known to make the CyberDeck weaker
+The EVA is a dual-component cybersecurity interface designed to monitor, manage, and visualize network security events. Built as the visual frontend and dedicated hardware display for the EVA-security-Framework firewall backend, this project combines a hardware-accelerated desktop application with a custom-engineered USB OLED monitor.
+
+The entire system features a strict Evangelion-inspired aesthetic utilizing high-contrast red-on-black wireframes, sharp geometry and terminal-style readouts.
 
 # The Custom Firewall System
 
