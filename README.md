@@ -16,7 +16,7 @@ The entire system features a strict Evangelion-inspired aesthetic utilizing high
 
 - [ ] Stateful inspection — tracks active connections and their states.
 
-- [ ] NAT (Network Address Translation) — translates private and public IP addresses when needed.
+- [x] NAT (Network Address Translation) — translates private and public IP addresses when needed(base version).
 
 - [x] Logging and monitoring — records allowed, blocked, and suspicious traffic.
 
@@ -24,11 +24,9 @@ The entire system features a strict Evangelion-inspired aesthetic utilizing high
 
 - [ ] VPN support — provides encrypted remote or site-to-site connections.
 
-- [ ] Intrusion detection/prevention (IDS/IPS) — identifies and potentially blocks malicious traffic.
+- [X] Intrusion detection/prevention (IDS/IPS) — identifies and potentially blocks malicious traffic(base version).
 
-- [ ] Configuration and management interface — used by administrators to configure the firewall.
-
-- [ ] Updates/signatures — keeps threat-detection rules and software current.
+- [ ] Configuration and management interface — used by administrators to configure the firewall(handeled by Vagabond).
 
 ### Privicy Enforcement Layer Contents
 
